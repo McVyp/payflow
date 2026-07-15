@@ -1,0 +1,35 @@
+# --- Python (producer, consumer) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- Node / pnpm (frontend) ---
+node_modules/
+frontend/node_modules/
+dist/
+.vite/
+*.local
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Docker ---
+# (docker-compose.yml itself should be committed - do not ignore it)
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Logs ---
+*.log
+logs/
