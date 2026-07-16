@@ -13,7 +13,7 @@ _consumer = Consumer({
     "bootstrap.servers": BROKERS,
     "group.id": GROUP_ID,
     "auto.offset.reset": "latest",
-    "enable.auto.commit": True,
+    "enable.auto.commit": False,
 })
 _admin = AdminClient({"bootstrap.servers": BROKERS})
 
@@ -25,7 +25,9 @@ def get_consumer() -> Consumer:
 def subscribe():
     _consumer.subscribe([TOPIC])
 
+
 _consumer_lock = threading.Lock()
+
 
 def poll_message(timeout=1.0):
     with _consumer_lock:
@@ -33,8 +35,17 @@ def poll_message(timeout=1.0):
     if msg is None or msg.error():
         return None
     event = json.loads(msg.value().decode("utf-8"))
-    return {"partition": msg.partition(), "offset": msg.offset(), "event": event}
+    return {"partition": msg.partition(), "offset": msg.offset(), "event": event, "_raw": msg}
 
+
+def commit_offset(msg):
+    with _consumer_lock:
+        _consumer.commit(message=msg, asynchronous=False)
+
+def seek_back(msg):
+    with _consumer_lock:
+        tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
+        _consumer.seek(tp)
 
 def get_group_state() -> dict:
     last_err = None
@@ -62,9 +73,18 @@ def get_group_state() -> dict:
 
     lag_by_partition = []
     with _consumer_lock:
-        committed = _consumer.committed(tps, timeout=10)
+        committed = None
+        for _ in range(3):
+            try:
+                committed = _consumer.committed(tps, timeout=10)
+                break
+            except Exception:
+                time.sleep(1)
+        if committed is None:
+            committed = []
+
         for tp in committed:
-            low, high = _consumer.get_watermark_offsets(tp, timeout=10, cached=False)
+            _, high = _consumer.get_watermark_offsets(tp, timeout=10, cached=False)
             committed_offset = tp.offset if tp.offset is not None and tp.offset >= 0 else 0
             lag = max(high - committed_offset, 0)
             lag_by_partition.append({

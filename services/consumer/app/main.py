@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from .kafka_client import subscribe, poll_message, get_group_state
+from .kafka_client import seek_back, subscribe, poll_message, commit_offset, get_group_state
 from .db import insert_transaction, get_history, reset_history, get_stats
 
 app = FastAPI()
@@ -55,9 +55,10 @@ def consumer_loop():
                     "row": row,
                     "sentAtMs": event.get("sentAtMs"),
                 })
+            commit_offset(result["_raw"])
         except Exception as err:
             print(f"Failed to process message: {err}")
-
+            seek_back(result["_raw"])
 
 @app.on_event("startup")
 def startup():
